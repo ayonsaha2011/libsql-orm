@@ -1,102 +1,102 @@
 //! Filtering and search functionality for libsql-orm
-//! 
+//!
 //! This module provides comprehensive filtering capabilities including simple comparisons,
 //! complex logical combinations, text search, and sorting. It supports building complex
 //! WHERE clauses programmatically with type safety.
-//! 
+//!
 //! # Basic Filtering
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{Filter, FilterOperator, Value};
-//! 
+//!
 //! // Simple equality filter
 //! let filter = Filter::eq("status", "active");
-//! 
+//!
 //! // Comparison filters
 //! let age_filter = Filter::gt("age", 18i64);
 //! let name_filter = Filter::like("name", "%john%");
-//! 
+//!
 //! // Convert to FilterOperator for use in queries
 //! let filter_op = FilterOperator::Single(age_filter);
 //! ```
-//! 
+//!
 //! # Complex Filtering
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{Filter, FilterOperator};
-//! 
+//!
 //! // AND combination
 //! let complex_filter = FilterOperator::And(vec![
 //!     FilterOperator::Single(Filter::eq("is_active", true)),
 //!     FilterOperator::Single(Filter::gt("age", 18i64)),
 //!     FilterOperator::Single(Filter::like("email", "%@company.com")),
 //! ]);
-//! 
+//!
 //! // OR combination
 //! let or_filter = FilterOperator::Or(vec![
 //!     FilterOperator::Single(Filter::eq("role", "admin")),
 //!     FilterOperator::Single(Filter::eq("role", "moderator")),
 //! ]);
-//! 
+//!
 //! // Nested combinations
 //! let nested = FilterOperator::And(vec![
 //!     complex_filter,
 //!     FilterOperator::Not(Box::new(or_filter)),
 //! ]);
 //! ```
-//! 
+//!
 //! # Text Search
-//! 
+//!
 //! ```rust
 //! use libsql_orm::SearchFilter;
-//! 
+//!
 //! // Search across multiple fields
 //! let search = SearchFilter::new("john", vec!["name", "email"])
 //!     .case_sensitive(false)
 //!     .exact_match(false);
-//! 
+//!
 //! let filter_op = search.to_filter_operator();
 //! ```
-//! 
+//!
 //! # Sorting
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{Sort, SortOrder};
-//! 
+//!
 //! let sorts = vec![
 //!     Sort::new("created_at", SortOrder::Desc),
 //!     Sort::new("name", SortOrder::Asc),
 //! ];
 //! ```
 
-use serde::{Deserialize, Serialize};
 use crate::{Operator, Value};
+use serde::{Deserialize, Serialize};
 
 /// Filter operator for building complex queries
-/// 
+///
 /// Represents a complete filter expression that can be a single condition,
 /// a logical combination of multiple conditions, or a custom SQL condition.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::{FilterOperator, Filter};
-/// 
+///
 /// // Single condition
 /// let single = FilterOperator::Single(Filter::eq("status", "active"));
-/// 
+///
 /// // Multiple conditions with AND
 /// let and_filter = FilterOperator::And(vec![
 ///     FilterOperator::Single(Filter::eq("is_active", true)),
 ///     FilterOperator::Single(Filter::gt("age", 18i64)),
 /// ]);
-/// 
+///
 /// // Multiple conditions with OR
 /// let or_filter = FilterOperator::Or(vec![
 ///     FilterOperator::Single(Filter::eq("role", "admin")),
 ///     FilterOperator::Single(Filter::eq("role", "user")),
 /// ]);
-/// 
+///
 /// // Negation
 /// let not_filter = FilterOperator::Not(Box::new(single));
 /// ```
@@ -115,20 +115,20 @@ pub enum FilterOperator {
 }
 
 /// Individual filter condition
-/// 
+///
 /// Represents a single comparison operation between a column and a value.
 /// Provides convenient constructor methods for common comparison operations.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::{Filter, Value};
-/// 
+///
 /// // Basic comparisons
 /// let eq_filter = Filter::eq("status", "active");
 /// let gt_filter = Filter::gt("age", 18i64);
 /// let like_filter = Filter::like("name", "%john%");
-/// 
+///
 /// // Range and list operations
 /// let between_filter = Filter::between("score", 80, 100);
 /// let in_filter = Filter::in_values("role", vec!["admin", "user"]);
@@ -145,7 +145,7 @@ pub struct Filter {
 }
 
 /// Filter value that can be a single value or multiple values
-/// 
+///
 /// Supports different value types for various SQL operations:
 /// - Single values for basic comparisons (=, >, <, etc.)
 /// - Multiple values for IN/NOT IN operations  
@@ -171,7 +171,11 @@ impl Filter {
     }
 
     /// Create a new filter with a simple value
-    pub fn new_simple(column: impl Into<String>, operator: Operator, value: impl Into<Value>) -> Self {
+    pub fn new_simple(
+        column: impl Into<String>,
+        operator: Operator,
+        value: impl Into<Value>,
+    ) -> Self {
         Self {
             column: column.into(),
             operator,
@@ -211,12 +215,20 @@ impl Filter {
 
     /// Create a LIKE filter
     pub fn like(column: impl Into<String>, pattern: impl Into<String>) -> Self {
-        Self::new(column, Operator::Like, FilterValue::Single(Value::Text(pattern.into())))
+        Self::new(
+            column,
+            Operator::Like,
+            FilterValue::Single(Value::Text(pattern.into())),
+        )
     }
 
     /// Create a NOT LIKE filter
     pub fn not_like(column: impl Into<String>, pattern: impl Into<String>) -> Self {
-        Self::new(column, Operator::NotLike, FilterValue::Single(Value::Text(pattern.into())))
+        Self::new(
+            column,
+            Operator::NotLike,
+            FilterValue::Single(Value::Text(pattern.into())),
+        )
     }
 
     /// Create an IN filter
@@ -238,17 +250,37 @@ impl Filter {
 
     /// Create an IS NOT NULL filter
     pub fn is_not_null(column: impl Into<String>) -> Self {
-        Self::new(column, Operator::IsNotNull, FilterValue::Single(Value::Null))
+        Self::new(
+            column,
+            Operator::IsNotNull,
+            FilterValue::Single(Value::Null),
+        )
     }
 
     /// Create a BETWEEN filter
-    pub fn between(column: impl Into<String>, min: impl Into<Value>, max: impl Into<Value>) -> Self {
-        Self::new(column, Operator::Between, FilterValue::Range(min.into(), max.into()))
+    pub fn between(
+        column: impl Into<String>,
+        min: impl Into<Value>,
+        max: impl Into<Value>,
+    ) -> Self {
+        Self::new(
+            column,
+            Operator::Between,
+            FilterValue::Range(min.into(), max.into()),
+        )
     }
 
     /// Create a NOT BETWEEN filter
-    pub fn not_between(column: impl Into<String>, min: impl Into<Value>, max: impl Into<Value>) -> Self {
-        Self::new(column, Operator::NotBetween, FilterValue::Range(min.into(), max.into()))
+    pub fn not_between(
+        column: impl Into<String>,
+        min: impl Into<Value>,
+        max: impl Into<Value>,
+    ) -> Self {
+        Self::new(
+            column,
+            Operator::NotBetween,
+            FilterValue::Range(min.into(), max.into()),
+        )
     }
 }
 
@@ -264,7 +296,7 @@ impl FilterOperator {
     }
 
     /// Create a NOT filter
-    pub fn not(filter: FilterOperator) -> Self {
+    pub fn negate(filter: FilterOperator) -> Self {
         FilterOperator::Not(Box::new(filter))
     }
 
@@ -291,24 +323,32 @@ impl FilterOperator {
     }
 }
 
+impl std::ops::Not for FilterOperator {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        FilterOperator::Not(Box::new(self))
+    }
+}
+
 /// Search filter for text-based searches
-/// 
+///
 /// Provides flexible text search capabilities across one or more columns
 /// with options for case sensitivity and exact matching.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::SearchFilter;
-/// 
+///
 /// // Basic search across multiple fields
 /// let search = SearchFilter::new("john", vec!["name", "email"]);
-/// 
+///
 /// // Case-sensitive exact match
 /// let exact_search = SearchFilter::new("John Doe", vec!["full_name"])
 ///     .case_sensitive(true)
 ///     .exact_match(true);
-/// 
+///
 /// // Convert to filter for use in queries
 /// let filter_op = search.to_filter_operator();
 /// ```
@@ -350,16 +390,16 @@ impl SearchFilter {
     /// Convert to FilterOperator
     pub fn to_filter_operator(&self) -> FilterOperator {
         let mut filters = Vec::new();
-        
+
         for column in &self.columns {
             let filter = if self.exact_match {
                 Filter::eq(column, &*self.query)
             } else {
-                Filter::like(column, &format!("%{}%", self.query))
+                Filter::like(column, format!("%{}%", self.query))
             };
             filters.push(FilterOperator::Single(filter));
         }
-        
+
         if filters.len() == 1 {
             filters.pop().unwrap()
         } else {
@@ -390,14 +430,14 @@ impl SearchFilter {
     /// Convert to FilterOperator with improved search logic
     pub fn to_filter_operator_improved(&self) -> FilterOperator {
         let mut filters = Vec::new();
-        
+
         for column in &self.columns {
             let pattern = if self.exact_match {
                 self.query.clone()
             } else {
                 format!("%{}%", self.query)
             };
-            
+
             let filter = if self.case_sensitive {
                 Filter::like(column.clone(), pattern)
             } else {
@@ -405,10 +445,10 @@ impl SearchFilter {
                 // This will be handled in the query builder
                 Filter::like(column.clone(), pattern)
             };
-            
+
             filters.push(FilterOperator::Single(filter));
         }
-        
+
         if filters.len() == 1 {
             filters.pop().unwrap()
         } else {
@@ -418,19 +458,19 @@ impl SearchFilter {
 }
 
 /// Sort specification
-/// 
+///
 /// Defines how query results should be sorted by column and order.
 /// Multiple sort specifications can be combined to create complex sorting.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::{Sort, SortOrder};
-/// 
+///
 /// // Single column sorts
 /// let name_asc = Sort::asc("name");
 /// let date_desc = Sort::desc("created_at");
-/// 
+///
 /// // Multiple column sorting
 /// let sorts = vec![
 ///     Sort::new("priority", SortOrder::Desc),
@@ -458,7 +498,11 @@ impl Sort {
     pub fn new_bool(column: impl Into<String>, ascending: bool) -> Self {
         Self {
             column: column.into(),
-            order: if ascending { crate::SortOrder::Asc } else { crate::SortOrder::Desc },
+            order: if ascending {
+                crate::SortOrder::Asc
+            } else {
+                crate::SortOrder::Desc
+            },
         }
     }
 
@@ -471,4 +515,4 @@ impl Sort {
     pub fn desc(column: impl Into<String>) -> Self {
         Self::new(column, crate::SortOrder::Desc)
     }
-} 
+}

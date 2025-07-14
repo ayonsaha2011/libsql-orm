@@ -51,7 +51,6 @@ crate-type = ["cdylib", "rlib"]
 [[example]]
 name = "basic_crud"
 path = "examples/basic_crud.rs"
-required-features = ["cloudflare"]
 
 [[example]]
 name = "cloudflare_worker"
@@ -61,27 +60,22 @@ required-features = ["cloudflare"]
 [[example]]
 name = "advanced_queries"
 path = "examples/advanced_queries.rs"
-required-features = ["cloudflare"]
 
 [[example]]
 name = "migrations"
 path = "examples/migrations.rs"
-required-features = ["cloudflare"]
 
 [[example]]
 name = "table_name_macro"
 path = "examples/table_name_macro.rs"
-required-features = ["cloudflare"]
 
 [[example]]
 name = "column_attributes"
 path = "examples/column_attributes.rs"
-required-features = ["cloudflare"]
 
 [[example]]
 name = "boolean_conversion_test"
 path = "examples/boolean_conversion_test.rs"
-required-features = ["cloudflare"]
 
 [workspace]
 members = [".", "libsql-orm-macros"]

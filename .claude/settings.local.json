@@ -9,7 +9,8 @@
       "Bash(mkdir:*)",
       "Bash(cd:*)",
       "Bash(rg:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(./scripts/pre-publish.sh:*)"
     ],
     "deny": []
   }

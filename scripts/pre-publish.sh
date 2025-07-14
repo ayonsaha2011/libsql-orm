@@ -67,13 +67,18 @@ echo "  - Testing macro crate packaging..."
     echo "❌ Macro crate packaging failed"
     exit 1
 }
+echo "✅ Macro crate packaging test passed"
 
-echo "  - Testing main crate packaging..."
-cargo package --allow-dirty > /dev/null || {
-    echo "❌ Main crate packaging failed"
+echo "  - Testing main crate structure (build only)..."
+# Note: Main crate packaging will fail until macro crate is published to crates.io
+# So we test the build instead to verify everything is correct
+cargo build --release > /dev/null || {
+    echo "❌ Main crate build failed"
     exit 1
 }
-echo "✅ Package creation tests passed"
+echo "✅ Main crate structure test passed"
+
+echo "ℹ️  Note: Main crate packaging will succeed only after macro crate is published to crates.io"
 
 # Check required files
 echo "📄 Checking required files..."
@@ -118,11 +123,14 @@ echo ""
 echo "📋 Publishing checklist:"
 echo "  1. Commit all changes to git"
 echo "  2. Create and push a version tag"
-echo "  3. Publish macro crate first: (cd libsql-orm-macros && cargo publish)"
-echo "  4. Wait for macro crate to be available on crates.io"
-echo "  5. Remove 'path = ...' from libsql-orm-macros dependency"
-echo "  6. Publish main crate: cargo publish"
+echo "  3. Publish macro crate first: (cd libsql-orm-macros && cargo publish --allow-dirty)"
+echo "  4. Wait for macro crate to be available on crates.io (usually 2-5 minutes)"
+echo "  5. Verify macro crate is available: cargo search libsql-orm-macros"
+echo "  6. Publish main crate: cargo publish --allow-dirty"
 echo "  7. Create GitHub release"
+echo ""
+echo "⚠️  Important: The macro crate MUST be published and available on crates.io"
+echo "    before the main crate can be packaged/published successfully."
 echo ""
 echo "🔗 Useful commands:"
 echo "  cargo login                    # Login to crates.io"

@@ -1,11 +1,11 @@
 //! Error handling for libsql-orm
-//! 
+//!
 //! This module provides comprehensive error types and handling for all operations
 //! within the libsql-orm library. All errors implement the standard `Error` trait
 //! and provide detailed error messages for debugging.
 //!
 //! # Error Categories
-//! 
+//!
 //! - **Connection Errors**: Database connection failures
 //! - **SQL Errors**: Query execution problems  
 //! - **Serialization Errors**: Data conversion issues
@@ -13,12 +13,12 @@
 //! - **Not Found Errors**: Resource not found
 //! - **Pagination Errors**: Pagination parameter issues
 //! - **Query Errors**: Query building problems
-//! 
+//!
 //! # Examples
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{Error, Result};
-//! 
+//!
 //! fn handle_error(result: Result<String>) {
 //!     match result {
 //!         Ok(value) => println!("Success: {}", value),
@@ -32,7 +32,7 @@
 use std::fmt;
 
 /// Custom error type for the libsql-orm crate
-/// 
+///
 /// Provides comprehensive error handling for all database and ORM operations.
 /// All variants include descriptive messages to aid in debugging and error handling.
 #[derive(Debug)]
@@ -64,16 +64,16 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Connection(msg) => write!(f, "Connection error: {}", msg),
-            Error::Sql(msg) => write!(f, "SQL error: {}", msg),
-            Error::Serialization(msg) => write!(f, "Serialization error: {}", msg),
-            Error::Validation(msg) => write!(f, "Validation error: {}", msg),
-            Error::NotFound(msg) => write!(f, "Not found: {}", msg),
-            Error::Pagination(msg) => write!(f, "Pagination error: {}", msg),
-            Error::Query(msg) => write!(f, "Query error: {}", msg),
-            Error::AnyhowError(msg) => write!(f, "Anyhow error: {}", msg),
-            Error::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            Error::Generic(msg) => write!(f, "Error: {}", msg),
+            Error::Connection(msg) => write!(f, "Connection error: {msg}"),
+            Error::Sql(msg) => write!(f, "SQL error: {msg}"),
+            Error::Serialization(msg) => write!(f, "Serialization error: {msg}"),
+            Error::Validation(msg) => write!(f, "Validation error: {msg}"),
+            Error::NotFound(msg) => write!(f, "Not found: {msg}"),
+            Error::Pagination(msg) => write!(f, "Pagination error: {msg}"),
+            Error::Query(msg) => write!(f, "Query error: {msg}"),
+            Error::AnyhowError(msg) => write!(f, "Anyhow error: {msg}"),
+            Error::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+            Error::Generic(msg) => write!(f, "Error: {msg}"),
         }
     }
 }
@@ -89,7 +89,6 @@ impl From<serde_json::Error> for Error {
         Error::Serialization(err.to_string())
     }
 }
-
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
@@ -110,4 +109,4 @@ impl From<anyhow::Error> for Error {
 }
 
 /// Result type alias for the crate
-pub type Result<T> = std::result::Result<T, Error>; 
+pub type Result<T> = std::result::Result<T, Error>;

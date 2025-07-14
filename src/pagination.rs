@@ -1,15 +1,15 @@
 //! Pagination support for libsql-orm
-//! 
+//!
 //! This module provides both offset-based and cursor-based pagination for handling
 //! large datasets efficiently. Offset-based pagination is simpler but less efficient
 //! for large datasets, while cursor-based pagination provides better performance
 //! and consistency.
-//! 
+//!
 //! # Offset-based Pagination
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{Pagination, PaginatedResult, Model};
-//! 
+//!
 //! async fn paginate_users(db: &Database) -> Result<(), Box<dyn std::error::Error>> {
 //!     let pagination = Pagination::new(1, 10); // Page 1, 10 items per page
 //!     let result: PaginatedResult<User> = User::find_paginated(&pagination, db).await?;
@@ -24,12 +24,12 @@
 //!     Ok(())
 //! }
 //! ```
-//! 
+//!
 //! # Cursor-based Pagination
-//! 
+//!
 //! ```rust
 //! use libsql_orm::{CursorPagination, CursorPaginatedResult};
-//! 
+//!
 //! async fn cursor_paginate(db: &Database) -> Result<(), Box<dyn std::error::Error>> {
 //!     let mut cursor_pagination = CursorPagination::new(10);
 //!     
@@ -46,18 +46,18 @@
 use serde::{Deserialize, Serialize};
 
 /// Pagination parameters for queries
-/// 
+///
 /// Provides offset-based pagination with helpful utility methods for calculating
 /// offsets, page numbers, and navigation state.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::Pagination;
-/// 
+///
 /// let mut pagination = Pagination::new(2, 10); // Page 2, 10 items per page
 /// pagination.set_total(45); // 45 total items
-/// 
+///
 /// assert_eq!(pagination.offset(), 10); // Skip first 10 items
 /// assert_eq!(pagination.limit(), 10);  // Take 10 items
 /// assert_eq!(pagination.total_pages, Some(5)); // 5 total pages
@@ -153,19 +153,19 @@ impl Default for Pagination {
 }
 
 /// Paginated result containing data and pagination metadata
-/// 
+///
 /// Contains both the data items for the current page and pagination metadata
 /// including current page, total pages, and navigation information.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::{PaginatedResult, Pagination};
-/// 
+///
 /// let pagination = Pagination::new(1, 10);
 /// let data = vec!["item1".to_string(), "item2".to_string()];
 /// let result = PaginatedResult::with_total(data, pagination, 25);
-/// 
+///
 /// println!("Items on page: {}", result.len());
 /// println!("Total items: {}", result.pagination.total.unwrap_or(0));
 /// ```
@@ -222,25 +222,25 @@ impl<T> PaginatedResult<T> {
 }
 
 /// Cursor-based pagination for better performance with large datasets
-/// 
+///
 /// Cursor-based pagination uses a cursor (typically a timestamp or ID) to mark
 /// the position in the dataset, providing consistent results even when data is
 /// being added or removed during pagination.
-/// 
+///
 /// # Advantages
-/// 
+///
 /// - **Consistent results**: No duplicate or missing items when data changes
 /// - **Better performance**: No need to count total items or skip large offsets  
 /// - **Real-time friendly**: Works well with live data streams
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::CursorPagination;
-/// 
+///
 /// // First page
 /// let pagination = CursorPagination::new(10);
-/// 
+///
 /// // Subsequent pages using cursor from previous result
 /// let next_pagination = CursorPagination::with_cursor(10, Some("cursor_value".to_string()));
 /// ```
@@ -326,19 +326,19 @@ impl Default for CursorPagination {
 }
 
 /// Cursor-based paginated result
-/// 
+///
 /// Contains data items and cursor pagination metadata for navigating
 /// through large datasets efficiently.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use libsql_orm::{CursorPaginatedResult, CursorPagination};
-/// 
+///
 /// let pagination = CursorPagination::new(10);
 /// let data = vec!["item1".to_string(), "item2".to_string()];
 /// let result = CursorPaginatedResult::new(data, pagination);
-/// 
+///
 /// println!("Items: {}", result.data().len());
 /// println!("Has next: {}", result.pagination().has_next);
 /// ```
@@ -353,10 +353,7 @@ pub struct CursorPaginatedResult<T> {
 impl<T> CursorPaginatedResult<T> {
     /// Create a new cursor paginated result
     pub fn new(data: Vec<T>, pagination: CursorPagination) -> Self {
-        Self {
-            data,
-            pagination,
-        }
+        Self { data, pagination }
     }
 
     /// Get the data items
@@ -368,4 +365,4 @@ impl<T> CursorPaginatedResult<T> {
     pub fn pagination(&self) -> &CursorPagination {
         &self.pagination
     }
-} 
+}
