@@ -118,7 +118,11 @@ check_field "license" "libsql-orm-macros/Cargo.toml"
 echo "✅ Cargo.toml metadata is complete"
 
 echo ""
-echo "🎉 Pre-publish verification completed successfully!"
+echo "🎉 Pre-publish verification completed successfully!
+
+ℹ️  Configuration note: Default WASM target has been removed from .cargo/config.toml
+   to allow tests to run on native targets. Use --target wasm32-unknown-unknown
+   explicitly when building for WASM."
 echo ""
 echo "📋 Publishing checklist:"
 echo "  1. Commit all changes to git"
