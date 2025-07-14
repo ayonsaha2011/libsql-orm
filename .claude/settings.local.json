@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(cargo check:*)",
+      "Bash(cargo:*)",
+      "Bash(mkdir:*)",
+      "Bash(cd:*)",
+      "Bash(rg:*)",
+      "Bash(chmod:*)"
+    ],
+    "deny": []
+  }
+}

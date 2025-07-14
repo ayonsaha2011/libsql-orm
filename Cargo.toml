@@ -1,0 +1,88 @@
+[package]
+name = "libsql-orm"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ayon Saha <ayonsaha2011@gmail.com>"]
+description = "A powerful, async-first ORM for libsql with first-class support for Cloudflare Workers and WebAssembly environments. Features include automatic boolean conversion, upsert operations, built-in logging, migrations, and comprehensive query building."
+documentation = "https://docs.rs/libsql-orm"
+homepage = "https://github.com/ayonsaha2011/libsql-orm"
+repository = "https://github.com/ayonsaha2011/libsql-orm"
+license = "MIT"
+readme = "README.md"
+keywords = ["orm", "libsql", "database", "sqlite", "wasm"]
+categories = ["database", "web-programming", "wasm", "asynchronous"]
+exclude = [
+    "target/",
+    ".git/",
+    ".gitignore",
+    "tests/",
+    "BOOLEAN_CONVERSION_FIX.md",
+]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+libsql = { version = "0.9.14", default-features = false, features = ["cloudflare"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde", "js"] }
+libsql-orm-macros = { version = "0.1.0", path = "./libsql-orm-macros" }
+anyhow = "1.0"
+worker = { version = "0.6", optional = true }
+log = "0.4"
+web-sys = { version = "0.3", features = ["console"] }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["macros", "rt"] }
+env_logger = "0.10"
+
+[features]
+default = []
+cloudflare = ["worker"]
+
+[lib]
+name = "libsql_orm"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[example]]
+name = "basic_crud"
+path = "examples/basic_crud.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "cloudflare_worker"
+path = "examples/cloudflare_worker.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "advanced_queries"
+path = "examples/advanced_queries.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "migrations"
+path = "examples/migrations.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "table_name_macro"
+path = "examples/table_name_macro.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "column_attributes"
+path = "examples/column_attributes.rs"
+required-features = ["cloudflare"]
+
+[[example]]
+name = "boolean_conversion_test"
+path = "examples/boolean_conversion_test.rs"
+required-features = ["cloudflare"]
+
+[workspace]
+members = [".", "libsql-orm-macros"]
+resolver = "2"
