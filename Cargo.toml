@@ -29,7 +29,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde", "js"] }
-libsql-orm-macros = { version = "0.1.0", path = "./libsql-orm-macros" }
+libsql-orm-macros = { version = "0.1.1", path = "./libsql-orm-macros" }
 anyhow = "1.0"
 worker = { version = "0.6", optional = true }
 log = "0.4"
