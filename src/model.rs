@@ -28,8 +28,20 @@ use crate::{
     Aggregate, Database, Error, FilterOperator, PaginatedResult, Pagination, QueryBuilder, Result,
     SearchFilter, Sort,
 };
-use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
+
+use serde::{de::DeserializeOwned, Serialize};
+
+/// Mask numeric IDs for logging
+fn mask_id(id: i64) -> String {
+    if id < 100 {
+        return "*".repeat(id.to_string().len());
+    }
+    let id_str = id.to_string();
+    let visible_digits = 2;
+    let masked_digits = id_str.len() - visible_digits;
+    format!("{}{}", &id_str[..visible_digits], "*".repeat(masked_digits))
+}
 
 /// Core trait for all database models
 #[allow(async_fn_in_trait)]
@@ -87,14 +99,20 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
         let mut result = self.clone();
         result.set_primary_key(id);
 
-        Self::log_info(&format!("Successfully created record with ID: {id}"));
+        Self::log_info(&format!(
+            "Successfully created record with ID: {}",
+            mask_id(id)
+        ));
         Ok(result)
     }
 
     /// Create or update a record based on whether it has a primary key
     async fn create_or_update(&self, db: &Database) -> Result<Self> {
         if let Some(id) = self.get_primary_key() {
-            Self::log_info(&format!("Updating existing record with ID: {id}"));
+            Self::log_info(&format!(
+                "Updating existing record with ID: {}",
+                mask_id(id)
+            ));
             // Check if record exists
             match Self::find_by_id(id, db).await? {
                 Some(_) => {
@@ -104,7 +122,8 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
                 None => {
                     // Record doesn't exist, create it
                     Self::log_warn(&format!(
-                        "Record with ID {id} not found, creating new record"
+                        "Record with ID {} not found, creating new record",
+                        mask_id(id)
                     ));
                     self.create(db).await
                 }
@@ -160,7 +179,8 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
                 _ => None,
             }) {
                 Self::log_info(&format!(
-                    "Found existing record with ID: {existing_id}, updating"
+                    "Found existing record with ID: {}, updating",
+                    mask_id(existing_id)
                 ));
                 let mut updated_self = self.clone();
                 updated_self.set_primary_key(existing_id);
@@ -228,7 +248,7 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
             Self::primary_key()
         );
 
-        Self::log_debug(&format!("Finding record by ID: {id}"));
+        Self::log_debug(&format!("Finding record by ID: {}", mask_id(id)));
         Self::log_debug(&format!("SQL: {sql}"));
 
         let mut rows = db
@@ -238,10 +258,10 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
 
         if let Some(row) = rows.next().await? {
             let map = Self::row_to_map(&row)?;
-            Self::log_debug(&format!("Found record with ID: {id}"));
+            Self::log_debug(&format!("Found record with ID: {}", mask_id(id)));
             Ok(Some(Self::from_map(map)?))
         } else {
-            Self::log_debug(&format!("No record found with ID: {id}"));
+            Self::log_debug(&format!("No record found with ID: {}", mask_id(id)));
             Ok(None)
         }
     }
@@ -357,7 +377,7 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
             Self::primary_key()
         );
 
-        Self::log_info(&format!("Updating record with ID: {id}"));
+        Self::log_info(&format!("Updating record with ID: {}", mask_id(id)));
         Self::log_debug(&format!("SQL: {sql}"));
 
         let mut params: Vec<libsql::Value> = map
@@ -368,7 +388,10 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
         params.push(libsql::Value::Integer(id));
 
         db.inner.execute(&sql, params).await?;
-        Self::log_info(&format!("Successfully updated record with ID: {id}"));
+        Self::log_info(&format!(
+            "Successfully updated record with ID: {}",
+            mask_id(id)
+        ));
         Ok(self.clone())
     }
 
@@ -407,13 +430,16 @@ pub trait Model: Serialize + DeserializeOwned + Send + Sync + Clone {
             Self::primary_key()
         );
 
-        Self::log_info(&format!("Deleting record with ID: {id}"));
+        Self::log_info(&format!("Deleting record with ID: {}", mask_id(id)));
         Self::log_debug(&format!("SQL: {sql}"));
 
         db.inner
             .execute(&sql, vec![libsql::Value::Integer(id)])
             .await?;
-        Self::log_info(&format!("Successfully deleted record with ID: {id}"));
+        Self::log_info(&format!(
+            "Successfully deleted record with ID: {}",
+            mask_id(id)
+        ));
         Ok(true)
     }
 

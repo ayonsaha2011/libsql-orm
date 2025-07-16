@@ -32,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 - **Model Derive Macro**: Automatic implementation of ORM traits
 - **Query Builder**: Fluent API for complex SQL generation
-- **Migrations**: Schema versioning and management
 - **Pagination**: Both offset and cursor-based pagination
 - **Search & Filtering**: Advanced text search and filtering
 - **Bulk Operations**: Efficient batch processing
