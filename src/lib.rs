@@ -50,7 +50,7 @@
 //!     
 //!     // Save to database
 //!     let saved_user = user.create(&db).await?;
-//!     println!("Created user with ID: {:?}", saved_user.id);
+//!     println!("Created user with ID: [MASKED]");
 //!     
 //!     // Find users
 //!     let users = User::find_all(&db).await?;

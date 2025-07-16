@@ -258,17 +258,11 @@ impl MigrationManager {
     /// Run all pending migrations
     pub async fn run_migrations(&self, migrations: Vec<Migration>) -> Result<(), Error> {
         for migration in migrations {
-            if let Some(executed_at) = migration.executed_at {
-                println!(
-                    "Migration '{}' already executed at {}",
-                    migration.name, executed_at
-                );
+            if let Some(_executed_at) = migration.executed_at {
                 continue;
             }
 
-            println!("Executing migration: {}", migration.name);
             self.execute_migration(&migration).await?;
-            println!("Migration '{}' executed successfully", migration.name);
         }
 
         Ok(())

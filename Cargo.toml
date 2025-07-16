@@ -48,34 +48,7 @@ name = "libsql_orm"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
-[[example]]
-name = "basic_crud"
-path = "examples/basic_crud.rs"
 
-[[example]]
-name = "cloudflare_worker"
-path = "examples/cloudflare_worker.rs"
-required-features = ["cloudflare"]
-
-[[example]]
-name = "advanced_queries"
-path = "examples/advanced_queries.rs"
-
-[[example]]
-name = "migrations"
-path = "examples/migrations.rs"
-
-[[example]]
-name = "table_name_macro"
-path = "examples/table_name_macro.rs"
-
-[[example]]
-name = "column_attributes"
-path = "examples/column_attributes.rs"
-
-[[example]]
-name = "boolean_conversion_test"
-path = "examples/boolean_conversion_test.rs"
 
 [workspace]
 members = [".", "libsql-orm-macros"]

@@ -3,9 +3,11 @@
 [![Crates.io](https://img.shields.io/crates/v/libsql-orm.svg)](https://crates.io/crates/libsql-orm)
 [![Documentation](https://docs.rs/libsql-orm/badge.svg)](https://docs.rs/libsql-orm)
 [![License](https://img.shields.io/crates/l/libsql-orm.svg)](LICENSE)
-[![Build Status](https://github.com/your-username/libsql-orm/workflows/CI/badge.svg)](https://github.com/your-username/libsql-orm/actions)
+[![Build Status](https://github.com/ayonsaha2011/libsql-orm/workflows/CI/badge.svg)](https://github.com/ayonsaha2011/libsql-orm/actions)
 
 A powerful, async-first ORM for [libsql](https://github.com/libsql/libsql) with first-class support for **Cloudflare Workers** and WebAssembly environments.
+
+> ⚠️ **Disclaimer**: This library is in early development and not fully tested in production environments. Use at your own risk. Please report any issues you encounter and feel free to contribute via pull requests - we're happy to address them and welcome community contributions!
 
 ## ✨ Features
 
@@ -14,7 +16,6 @@ A powerful, async-first ORM for [libsql](https://github.com/libsql/libsql) with 
 - 🎯 **Type-Safe** - Leverages Rust's type system for compile-time safety
 - 📊 **Rich Query Builder** - Fluent API for complex queries
 - 🔍 **Advanced Filtering** - Search, pagination, sorting, and aggregations
-- 🛠️ **Migration System** - Database schema management and versioning
 - 🎨 **Derive Macros** - Automatic model generation with `#[derive(Model)]`
 - 📦 **Bulk Operations** - Efficient batch inserts, updates, and deletes
 - 🌐 **WASM Compatible** - Optimized for WebAssembly targets
@@ -22,7 +23,6 @@ A powerful, async-first ORM for [libsql](https://github.com/libsql/libsql) with 
 - ✅ **Boolean Type Safety** - Automatic SQLite integer ↔ Rust boolean conversion
 - 🏷️ **Column Attributes** - `#[orm_column(...)]` for column customization
 - 🔄 **Upsert Operations** - Smart create_or_update and upsert methods
-- 📝 **Built-in Logging** - Comprehensive logging for debugging and monitoring
 
 ## 🚀 Quick Start
 
@@ -38,7 +38,7 @@ chrono = { version = "0.4", features = ["serde"] }
 ### Basic Usage
 
 ```rust
-use libsql_orm::{Model, Database};
+use libsql_orm::{Model, Database, FilterOperator, Value};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 
@@ -71,11 +71,9 @@ async fn example() -> Result<(), Box<dyn std::error::Error>> {
     
     // Save to database
     let saved_user = user.create(&db).await?;
-    println!("Created user with ID: {:?}", saved_user.id);
     
     // Find users
     let users = User::find_all(&db).await?;
-    println!("Found {} users", users.len());
     
     // Query with conditions
     let active_users = User::find_where(
@@ -115,14 +113,6 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     // Connect to database
     let db = Database::new_connect(&database_url, &auth_token).await
         .map_err(|e| format!("Database connection failed: {}", e))?;
-    
-    // Run migrations
-    let manager = MigrationManager::new(db);
-    let migration = generate_migration!(Post);
-    manager.execute_migration(&migration).await
-        .map_err(|e| format!("Migration failed: {}", e))?;
-    
-    let db = manager.database();
     
     // Handle the request
     match req.method() {
@@ -173,6 +163,9 @@ assert_eq!(User::table_name(), "user_accounts");
 libsql-orm automatically handles boolean conversion between SQLite and Rust:
 
 ```rust
+use libsql_orm::{Model, FilterOperator, Value};
+use serde::{Serialize, Deserialize};
+
 #[derive(Model, Serialize, Deserialize)]
 struct User {
     pub id: Option<i64>,
@@ -206,6 +199,9 @@ let deserialized: User = serde_json::from_str(&json)?;  // ✅ No errors
 Customize column properties with `#[orm_column(...)]`:
 
 ```rust
+use libsql_orm::Model;
+use serde::{Serialize, Deserialize};
+
 #[derive(Model, Serialize, Deserialize)]
 struct Product {
     #[orm_column(type = "INTEGER PRIMARY KEY AUTOINCREMENT")]
@@ -246,10 +242,12 @@ use libsql_orm::{Pagination, PaginatedResult};
 let pagination = Pagination::new(1, 10); // page 1, 10 items per page
 let result: PaginatedResult<User> = User::find_paginated(&pagination, &db).await?;
 
-println!("Page {}/{}", result.current_page, result.total_pages);
-println!("Total items: {}", result.total_count);
+// Access pagination info
+// Page: result.pagination.page
+// Total pages: result.pagination.total_pages.unwrap_or(0)
+// Total items: result.pagination.total.unwrap_or(0)
 for user in result.data {
-    println!("User: {}", user.name);
+    // Process user: user.name
 }
 ```
 
@@ -311,6 +309,7 @@ libsql-orm provides intelligent create-or-update operations:
 
 ```rust
 use libsql_orm::{Model, Database};
+use chrono::{DateTime, Utc};
 
 // Create or update based on primary key
 let mut user = User {
@@ -340,94 +339,6 @@ let saved_user = user.upsert(&["email"], &db).await?;
 let saved_user = user.upsert(&["email", "username"], &db).await?;
 ```
 
-**Use Cases:**
-- ✅ **Data Synchronization** - Import external data without duplicates
-- ✅ **User Registration** - Update existing accounts or create new ones
-- ✅ **Configuration Management** - Maintain settings without conflicts
-- ✅ **API Endpoints** - Handle PUT requests efficiently
-
-### Built-in Logging
-
-libsql-orm includes comprehensive logging for debugging and monitoring:
-
-```rust
-use libsql_orm::{Model, Database};
-
-// All operations are automatically logged
-let user = User::new("John", "john@example.com");
-
-// Logs: [INFO] users: Creating record in table: users
-// Logs: [DEBUG] users: SQL: INSERT INTO users (name, email, is_active) VALUES (?, ?, ?)
-// Logs: [INFO] users: Successfully created record with ID: 123
-let saved_user = user.create(&db).await?;
-
-// Logs: [DEBUG] users: Finding record by ID: 123
-// Logs: [INFO] users: Found record with ID: 123
-let found_user = User::find_by_id(123, &db).await?;
-
-// Logs: [INFO] users: Updating existing record with ID: 123
-// Logs: [INFO] users: Updating record with ID: 123
-// Logs: [DEBUG] users: SQL: UPDATE users SET name = ?, email = ? WHERE id = ?
-// Logs: [INFO] users: Successfully updated record with ID: 123
-let updated_user = found_user.unwrap().create_or_update(&db).await?;
-```
-
-**Logging Features:**
-- 🎯 **Cross-Platform** - Uses browser console in WASM, standard logging elsewhere
-- 📊 **Multiple Levels** - INFO, DEBUG, WARN, ERROR levels
-- 🏷️ **Table Context** - Automatic table name prefixing for clarity
-- 🔍 **SQL Debugging** - View actual SQL queries being executed
-- ⚡ **Performance Friendly** - Minimal overhead in production
-
-**Cloudflare Workers Logging:**
-```rust
-// In browser/worker environment, logs appear in console
-// [INFO] users: Creating record in table: users
-// [DEBUG] users: SQL: INSERT INTO users (...) VALUES (...)
-// [WARN] users: Record with ID 999 not found, creating new record
-```
-
-**Native Application Logging:**
-```rust
-// Configure logging in your application
-use log::LevelFilter;
-use env_logger;
-
-env_logger::Builder::from_default_env()
-    .filter_level(LevelFilter::Debug)
-    .init();
-
-// Now all ORM operations will use standard Rust logging
-```
-
-## 🔧 Migrations
-
-libsql-orm includes a powerful migration system:
-
-```rust
-use libsql_orm::{MigrationManager, Migration, MigrationBuilder};
-
-// Auto-generate migration from model
-let migration = generate_migration!(User);
-
-// Or create manually
-let migration = MigrationBuilder::new("create_users_table")
-    .up(r#"
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            created_at TEXT NOT NULL
-        )
-    "#)
-    .down("DROP TABLE users")
-    .build();
-
-// Execute migration
-let manager = MigrationManager::new(db);
-manager.execute_migration(&migration).await?;
-```
-
 ## 🏗️ Architecture
 
 ### WASM Compatibility
@@ -439,83 +350,6 @@ libsql-orm is built from the ground up for WebAssembly environments:
 - Minimal binary size with selective feature compilation
 - Compatible with Cloudflare Workers, Deno Deploy, and other edge platforms
 
-### Performance
-
-- **Zero-copy deserialization** where possible
-- **Connection pooling** for optimal database usage
-- **Lazy loading** of related data
-- **Efficient batch operations** for bulk data handling
-
-## 📖 Examples
-
-### Complete CRUD Example
-
-```rust
-use libsql_orm::{Model, Database, FilterOperator, Pagination};
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-
-#[derive(Model, Debug, Clone, Serialize, Deserialize)]
-struct User {
-    pub id: Option<i64>,
-    pub name: String,
-    pub email: String,
-    pub age: Option<i32>,
-    pub is_active: bool,
-    pub created_at: DateTime<Utc>,
-}
-
-async fn crud_example() -> Result<(), Box<dyn std::error::Error>> {
-    let db = Database::new_connect("your-db-url", "your-token").await?;
-    
-    // CREATE
-    let user = User {
-        id: None,
-        name: "John Doe".to_string(),
-        email: "john@example.com".to_string(),
-        age: Some(30),
-        is_active: true,
-        created_at: Utc::now(),
-    };
-    let created_user = user.create(&db).await?;
-    
-    // READ
-    let found_user = User::find_by_id(created_user.id.unwrap(), &db).await?;
-    let all_users = User::find_all(&db).await?;
-    
-    // UPDATE
-    let mut user_to_update = found_user.unwrap();
-    user_to_update.name = "Jane Doe".to_string();
-    let updated_user = user_to_update.update(&db).await?;
-    
-    // CREATE OR UPDATE (smart upsert)
-    let user_with_id = User {
-        id: Some(999),  // If exists, update; if not, create
-        name: "Smart User".to_string(),
-        email: "smart@example.com".to_string(),
-        age: Some(25),
-        is_active: true,
-        created_at: Utc::now(),
-    };
-    let smart_saved = user_with_id.create_or_update(&db).await?;
-    
-    // UPSERT by unique constraint
-    let unique_user = User {
-        id: None,
-        name: "Unique User".to_string(),
-        email: "unique@example.com".to_string(),  // Will check if this email exists
-        age: Some(35),
-        is_active: true,
-        created_at: Utc::now(),
-    };
-    let upserted_user = unique_user.upsert(&["email"], &db).await?;
-    
-    // DELETE
-    updated_user.delete(&db).await?;
-    
-    Ok(())
-}
-```
 
 ## 🔗 Ecosystem
 
@@ -526,87 +360,29 @@ libsql-orm works great with:
 - **[Cloudflare Workers](https://workers.cloudflare.com/)** - Edge computing platform
 - **[worker-rs](https://github.com/cloudflare/workers-rs)** - Cloudflare Workers Rust SDK
 
-## 🔧 Troubleshooting
-
-### Boolean Serialization Issues
-
-If you encounter errors like `"invalid type: integer '1', expected a boolean"`, you have two solutions:
-
-#### Option 1: Automatic Conversion (Recommended)
-The derive macro handles this automatically in most cases:
-
-```rust
-// ✅ This works automatically with the derive macro
-#[derive(Model, Serialize, Deserialize)]
-struct User {
-    pub is_active: bool,    // Automatically converts SQLite 0/1 to false/true
-    pub enabled: bool,      // Works with any boolean field name
-}
-```
-
-#### Option 2: Manual Deserializer (For Edge Cases)
-If automatic conversion doesn't work, use the custom deserializer:
-
-```rust
-use libsql_orm::deserialize_bool;
-
-#[derive(Model, Serialize, Deserialize)]
-struct User {
-    pub id: Option<i64>,
-    pub name: String,
-    
-    // Use custom deserializer for problematic boolean fields
-    #[serde(deserialize_with = "deserialize_bool")]
-    pub is_active: bool,
-    
-    #[serde(deserialize_with = "deserialize_bool")]
-    pub is_verified: bool,
-}
-```
-
-The `deserialize_bool` function handles:
-- ✅ **Integers**: `0` → `false`, `1` → `true`
-- ✅ **Booleans**: Pass through unchanged
-- ✅ **Strings**: `"true"`, `"1"`, `"yes"` → `true`; `"false"`, `"0"`, `"no"` → `false`
-
-### Table Name Conflicts
-
-Use the `#[table_name("custom")]` attribute to resolve naming conflicts:
-
-```rust
-#[derive(Model, Serialize, Deserialize)]
-#[table_name("app_users")]  // Avoid conflicts with system tables
-struct User {
-    pub id: Option<i64>,
-    pub name: String,
-}
-```
-
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome! Please feel free to submit issues and pull requests.
 
-### Development Setup
+## ☕ Support the Project
 
-```bash
-git clone https://github.com/your-username/libsql-orm
-cd libsql-orm
-cargo build
-cargo test
-```
+If you find this library helpful and would like to support its development, consider making a donation:
 
-### Running Tests
+### 💰 Donation Options
 
-```bash
-# Unit tests
-cargo test
+- **GitHub Sponsors**: [Sponsor on GitHub](https://github.com/sponsors/ayonsaha2011)
+- **Buy Me a Coffee**: [Buy me a coffee](https://coff.ee/ayonsaha2011)
+- **PayPal**: [PayPal Donation](https://paypal.me/ayonsaha)
 
-# Integration tests with real database
-cargo test --features integration-tests
+### 🎯 What Your Support Helps With
 
-# WASM tests
-wasm-pack test --node
-```
+- 🚀 **Feature Development** - Building new capabilities and improvements
+- 🐛 **Bug Fixes** - Maintaining stability and reliability  
+- 📚 **Documentation** - Creating better guides and examples
+- 🔧 **Maintenance** - Keeping the library up-to-date with dependencies
+- ☁️ **Infrastructure** - Hosting costs for CI/CD and testing
+
+Every contribution, no matter the size, helps make this library better for everyone! 🙏
 
 ## 📄 License
 
@@ -618,17 +394,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Cloudflare](https://cloudflare.com) for the Workers platform
 - Rust community for the amazing ecosystem
 
-## 📊 Status
-
-- ✅ **Stable API** - Ready for production use
-- ✅ **Well Tested** - Comprehensive test suite
-- ✅ **Documented** - Complete API documentation
-- ✅ **WASM Ready** - Optimized for edge computing
-- 🔄 **Active Development** - Regular updates and improvements
-
 ---
-
 **Need help?** 
 - 📚 [Documentation](https://docs.rs/libsql-orm)
-- 💬 [Discussions](https://github.com/your-username/libsql-orm/discussions)
-- 🐛 [Issues](https://github.com/your-username/libsql-orm/issues)
+- 💬 [Discussions](https://github.com/ayonsaha2011/libsql-orm/discussions)
+- 🐛 [Issues](https://github.com/ayonsaha2011/libsql-orm/issues)
+

@@ -1,0 +1,276 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.1.1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Dry run (do not actually publish)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    
+    - name: Run clippy
+      run: cargo clippy --all-targets -- -D warnings
+    
+    - name: Run tests
+      run: cargo test --verbose --lib
+    
+    - name: Check documentation
+      run: cargo doc --no-deps --document-private-items
+    
+    - name: Validate version consistency
+      run: |
+        # Extract version from tag or input
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        
+        echo "Releasing version: $VERSION"
+        
+        # Check if version matches in Cargo.toml files
+        MAIN_VERSION=$(grep '^version = ' Cargo.toml | cut -d'"' -f2)
+        MACRO_VERSION=$(grep '^version = ' libsql-orm-macros/Cargo.toml | cut -d'"' -f2)
+        
+        if [[ "$MAIN_VERSION" != "$VERSION" ]]; then
+          echo "❌ Main crate version ($MAIN_VERSION) doesn't match release version ($VERSION)"
+          exit 1
+        fi
+        
+        if [[ "$MACRO_VERSION" != "$VERSION" ]]; then
+          echo "❌ Macro crate version ($MACRO_VERSION) doesn't match release version ($VERSION)"
+          exit 1
+        fi
+        
+        echo "✅ Version consistency check passed"
+        
+        # Store version for other jobs
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+  publish-macros:
+    name: Publish Macro Crate
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'push' || github.event.inputs.dry_run == 'false' }}
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: --registry crates-io
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    
+    - name: Publish macro crate
+      uses: actions-rs/cargo@v1
+      with:
+        command: publish
+        args: --package libsql-orm-macros --registry crates-io
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    
+    - name: Wait for macro crate to be available
+      run: |
+        # Wait a bit for the crate to be available on crates.io
+        echo "Waiting for macro crate to be available on crates.io..."
+        sleep 30
+        
+        # Try to fetch the crate to verify it's available
+        cargo search libsql-orm-macros --limit 1
+
+  publish-main:
+    name: Publish Main Crate
+    runs-on: ubuntu-latest
+    needs: [validate, publish-macros]
+    if: ${{ github.event_name == 'push' || github.event_inputs.dry_run == 'false' }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Login to crates.io
+      uses: actions-rs/cargo@v1
+      with:
+        command: login
+        args: --registry crates-io
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    
+    - name: Publish main crate
+      uses: actions-rs/cargo@v1
+      with:
+        command: publish
+        args: --package libsql-orm --registry crates-io
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, publish-macros, publish-main]
+    if: ${{ github.event_name == 'push' || github.event_inputs.dry_run == 'false' }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Extract version
+      id: version
+      run: |
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from git commits
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        
+        if [[ -n "$PREVIOUS_TAG" ]]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD | grep -v "Merge pull request" | grep -v "Merge branch")
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s" HEAD~10..HEAD | grep -v "Merge pull request" | grep -v "Merge branch")
+        fi
+        
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        release_name: Release v${{ steps.version.outputs.version }}
+        body: |
+          ## What's Changed
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Installation
+          
+          ```toml
+          [dependencies]
+          libsql-orm = "${{ steps.version.outputs.version }}"
+          ```
+          
+          ## Documentation
+          
+          - [Documentation](https://docs.rs/libsql-orm)
+          - [GitHub Repository](https://github.com/ayonsaha2011/libsql-orm)
+          
+          ## Support
+          
+          If you find this library helpful, consider supporting its development:
+          - [GitHub Sponsors](https://github.com/sponsors/ayonsaha2011)
+          - [Buy Me a Coffee](https://coff.ee/ayonsaha2011)
+        draft: false
+        prerelease: false
+
+  dry-run:
+    name: Dry Run (Manual Trigger)
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Test macro crate packaging
+      run: |
+        cd libsql-orm-macros
+        cargo package --allow-dirty
+        echo "✅ Macro crate packaging test passed"
+    
+    - name: Test main crate packaging
+      run: |
+        # Test that the main crate can be packaged (will fail if macro dependency is not available)
+        echo "ℹ️  Main crate packaging test (will fail until macro crate is published)"
+        cargo package --allow-dirty || echo "Expected failure - macro crate not yet published"
+    
+    - name: Dry run summary
+      run: |
+        echo "🎯 Dry run completed successfully!"
+        echo "📦 Version: ${{ github.event.inputs.version }}"
+        echo "✅ All validation checks passed"
+        echo "📝 To publish, run this workflow again with dry_run=false" 

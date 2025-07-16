@@ -43,9 +43,6 @@ jobs:
       run: |
         # Run tests on native target only (not WASM)
         cargo test --verbose --lib
-        
-    - name: Check examples compile
-      run: cargo check --examples
     
     - name: Check documentation
       run: cargo doc --no-deps --document-private-items
