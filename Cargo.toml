@@ -1,6 +1,6 @@
 [package]
 name = "libsql-orm"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Ayon Saha <ayonsaha2011@gmail.com>"]
 description = "A powerful, async-first ORM for libsql with first-class support for Cloudflare Workers and WebAssembly environments. Features include automatic boolean conversion, upsert operations, built-in logging, migrations, and comprehensive query building."
