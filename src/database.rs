@@ -3,7 +3,10 @@
 //! This module handles the connection to libsql databases and provides
 //! query execution capabilities for Cloudflare Workers.
 
+#[cfg(target_arch = "wasm32")]
 use libsql::wasm::{CloudflareSender, Connection, Rows};
+#[cfg(not(target_arch = "wasm32"))]
+use libsql::{Builder, Connection, Rows};
 
 /// Database connection wrapper for libsql in Cloudflare Workers
 ///
@@ -25,7 +28,24 @@ use libsql::wasm::{CloudflareSender, Connection, Rows};
 /// }
 /// ```
 pub struct Database {
+    #[cfg(target_arch = "wasm32")]
     pub inner: Connection<CloudflareSender>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub inner: Connection,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl From<Connection<CloudflareSender>> for Database {
+    fn from(inner: Connection<CloudflareSender>) -> Self {
+        Self { inner }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<Connection> for Database {
+    fn from(inner: Connection) -> Self {
+        Self { inner }
+    }
 }
 
 impl Database {
@@ -55,23 +75,14 @@ impl Database {
     /// }
     /// ```
     pub async fn new_connect(url: &str, token: &str) -> std::result::Result<Self, libsql::Error> {
+        #[cfg(target_arch = "wasm32")]
         let conn = Connection::open_cloudflare_worker(url.to_string(), token.to_string());
-        match conn.execute("SELECT 1", ()).await {
-            Ok(_) => Ok(Database { inner: conn }),
-            Err(e) => Err(e),
-        }
-    }
-
-    /// Gets a reference to the underlying libsql connection
-    ///
-    /// This method provides direct access to the libsql connection for advanced use cases
-    /// where you need to interact with the libsql API directly.
-    ///
-    /// # Returns
-    ///
-    /// A reference to the underlying `Connection<CloudflareSender>`
-    pub fn get_connection(&self) -> &Connection<CloudflareSender> {
-        &self.inner
+        #[cfg(not(target_arch = "wasm32"))]
+        let conn = Builder::new_remote(url.to_string(), token.to_string())
+            .build()
+            .await?
+            .connect()?;
+        conn.execute("SELECT 1", ()).await.map(|_| Self::from(conn))
     }
 
     /// Executes a SQL query with parameters

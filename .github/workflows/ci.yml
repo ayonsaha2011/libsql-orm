@@ -71,10 +71,10 @@ jobs:
       run: |
         # Only check compilation for WASM, don't run tests
         # WASM binaries cannot be executed on GitHub runners
-        cargo check --target wasm32-unknown-unknown
+        cargo check --target wasm32-unknown-unknown --no-default-features --features "cloudflare"
         
     - name: Build WASM release
-      run: cargo build --target wasm32-unknown-unknown --release
+      run: cargo build --target wasm32-unknown-unknown --no-default-features --features "cloudflare" --release
 
   publish-dry-run:
     name: Test Package Structure
